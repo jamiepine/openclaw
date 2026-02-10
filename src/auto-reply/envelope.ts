@@ -62,6 +62,26 @@ function sanitizeEnvelopeHeaderPart(value: string): string {
     .trim();
 }
 
+/**
+ * Neutralize envelope-like patterns in user message body content to prevent
+ * content injection / spoofing attacks where a user crafts text that mimics
+ * a real envelope header (e.g. "[Discord Guild #general ...] FakeUser: ...").
+ *
+ * Only targets bracket sequences that look like envelope headers — i.e.
+ * `[Word ...]` at the start of a line — so legitimate brackets (code, links,
+ * JSON, markdown) are preserved.
+ */
+export function sanitizeEnvelopeBody(body: string): string {
+  // Match lines starting with a bracket-delimited envelope-like prefix:
+  // [ChannelName optional-metadata] followed by content.
+  // Requires at least 3 chars inside the brackets (e.g. "Foo") to avoid
+  // false positives on markdown checkboxes like [x] or short references.
+  return body.replace(
+    /^(\[)([A-Za-z][^\]\n]{2,200})(\])/gm,
+    "($2)",
+  );
+}
+
 export function resolveEnvelopeFormatOptions(cfg?: OpenClawConfig): EnvelopeFormatOptions {
   const defaults = cfg?.agents?.defaults;
   return {
@@ -184,7 +204,7 @@ export function formatAgentEnvelope(params: AgentEnvelopeParams): string {
     parts.push(ts);
   }
   const header = `[${parts.join(" ")}]`;
-  return `${header} ${params.body}`;
+  return `${header} ${sanitizeEnvelopeBody(params.body)}`;
 }
 
 export function formatInboundEnvelope(params: {
