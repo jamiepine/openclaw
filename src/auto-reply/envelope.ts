@@ -222,7 +222,9 @@ export function formatInboundEnvelope(params: {
   const isDirect = !chatType || chatType === "direct";
   const resolvedSenderRaw = params.senderLabel?.trim() || resolveSenderLabel(params.sender ?? {});
   const resolvedSender = resolvedSenderRaw ? sanitizeEnvelopeHeaderPart(resolvedSenderRaw) : "";
-  const body = !isDirect && resolvedSender ? `${resolvedSender}: ${params.body}` : params.body;
+  // Sanitize the body BEFORE prepending sender label to catch spoofed envelopes at the start
+  const sanitizedBody = sanitizeEnvelopeBody(params.body);
+  const body = !isDirect && resolvedSender ? `${resolvedSender}: ${sanitizedBody}` : sanitizedBody;
   return formatAgentEnvelope({
     channel: params.channel,
     from: params.from,
